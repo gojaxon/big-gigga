@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IL2CPP Symbol Getter</title>
+  <style>
+    /* same as the standalone version – I'll keep it concise */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; color: #1e293b; transition: background 0.3s, color 0.3s; min-height: 100vh; display: flex; flex-direction: column; }
+    body.dark { background: #0f172a; color: #e2e8f0; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.08); }
+    body.dark header { border-bottom-color: rgba(255,255,255,0.08); }
+    .back-btn { background: none; border: none; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: inherit; padding: 0.4rem 0.8rem; border-radius: 0.4rem; transition: background 0.2s; }
+    .back-btn:hover { background: rgba(0,0,0,0.05); }
+    body.dark .back-btn:hover { background: rgba(255,255,255,0.08); }
+    .header-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .icon-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 0.4rem; border-radius: 0.4rem; transition: background 0.2s; color: inherit; }
+    .icon-btn:hover { background: rgba(0,0,0,0.05); }
+    body.dark .icon-btn:hover { background: rgba(255,255,255,0.08); }
+    .volume-slider { width: 80px; height: 4px; accent-color: #6366f1; }
+    main { flex: 1; max-width: 48rem; margin: 0 auto; padding: 2rem 1.5rem; width: 100%; }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .subtitle { color: #64748b; margin-bottom: 1.5rem; }
+    body.dark .subtitle { color: #94a3b8; }
+    .dropzone { border: 2px dashed #cbd5e1; border-radius: 1rem; padding: 2.5rem 1.5rem; text-align: center; cursor: pointer; transition: border-color 0.3s, background 0.3s; background: rgba(0,0,0,0.02); }
+    body.dark .dropzone { border-color: #334155; background: rgba(255,255,255,0.02); }
+    .dropzone:hover { border-color: #6366f1; }
+    .dropzone.dragover { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+    .dropzone-icon { font-size: 2.5rem; margin-bottom: 0.5rem; color: #94a3b8; }
+    body.dark .dropzone-icon { color: #64748b; }
+    .dropzone-text { font-weight: 500; }
+    .dropzone-hint { font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem; }
+    body.dark .dropzone-hint { color: #64748b; }
+    #file-input { display: none; }
+    .result-area { margin-top: 2rem; }
+    .result-stats { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; }
+    .stats-badge { font-size: 0.85rem; background: #e2e8f0; padding: 0.2rem 0.8rem; border-radius: 9999px; color: #1e293b; }
+    body.dark .stats-badge { background: #1e293b; color: #e2e8f0; }
+    .symbol-list { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 0.5rem 0; max-height: 400px; overflow-y: auto; font-family: "Courier New", monospace; font-size: 0.85rem; }
+    body.dark .symbol-list { background: #1e293b; border-color: #334155; }
+    .symbol-item { padding: 0.3rem 1rem; border-bottom: 1px solid #f1f5f9; white-space: pre-wrap; word-break: break-all; }
+    body.dark .symbol-item { border-bottom-color: #2d3748; }
+    .symbol-item:last-child { border-bottom: none; }
+    .empty-state { padding: 1.5rem; text-align: center; color: #94a3b8; }
+    .footer-badge { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #121212; color: white; padding: 0.4rem 0.8rem; border-radius: 0.5rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); pointer-events: none; }
+    .footer-badge svg { width: 18px; height: 18px; }
+    #audio-player { display: none; }
+    .spinner { border: 3px solid #e2e8f0; border-top: 3px solid #6366f1; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; display: inline-block; margin-left: 0.5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .upload-status { margin-top: 0.5rem; font-size: 0.9rem; color: #6366f1; }
+  </style>
+</head>
+<body>
+  <audio id="audio-player" loop preload="auto">
+    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+  </audio>
+
+  <header>
+    <button class="back-btn" onclick="history.back()">← Back</button>
+    <div class="header-actions">
+      <div style="display:flex;align-items:center;gap:0.3rem;">
+        <button class="icon-btn" id="mute-btn" aria-label="Toggle mute">🔊</button>
+        <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
+      </div>
+      <button class="icon-btn" id="theme-btn" aria-label="Toggle theme">🌙</button>
+    </div>
+  </header>
+
+  <main>
+    <h1>symbol getter</h1>
+    <p class="subtitle">upload the libil2cpp.so to get symbols (server‑side)</p>
+
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-icon">⬆</div>
+      <div class="dropzone-text">upload the libil2cpp.so</div>
+      <div class="dropzone-hint">only for the libil2cpp.so</div>
+      <div class="upload-status" id="status"></div>
+    </div>
+    <input type="file" id="file-input" accept=".so" />
+
+    <div class="result-area" id="result-area" style="display:none;">
+      <div class="result-stats">
+        <span id="symbol-count">0 symbols found</span>
+        <span class="stats-badge" id="file-name">file.so</span>
+      </div>
+      <div class="symbol-list" id="symbol-list">
+        <div class="empty-state">No symbols yet</div>
+      </div>
+    </div>
+  </main>
+
+  <div class="footer-badge">
+    Built with
+    <svg fill="currentColor" viewBox="0 0 147 70" xmlns="http://www.w3.org/2000/svg">
+      <path d="M56 50.2031V14H70V60.1562C70 65.5928 65.5928 70 60.1562 70C57.5605 70 54.9982 68.9992 53.1562 67.1573L0 14H19.7969L56 50.2031Z"/>
+      <path d="M147 56H133V23.9531L100.953 56H133V70H96.6875C85.8144 70 77 61.1856 77 50.3125V14H91V46.1562L123.156 14H91V0H127.312C138.186 0 147 8.81439 147 19.6875V56Z"/>
+    </svg>
+    v0
+  </div>
+
+  <script>
+    (function() {
+      // DOM refs
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.getElementById('file-input');
+      const resultArea = document.getElementById('result-area');
+      const symbolList = document.getElementById('symbol-list');
+      const symbolCount = document.getElementById('symbol-count');
+      const fileName = document.getElementById('file-name');
+      const status = document.getElementById('status');
+      const audio = document.getElementById('audio-player');
+      const muteBtn = document.getElementById('mute-btn');
+      const volumeSlider = document.getElementById('volume-slider');
+      const themeBtn = document.getElementById('theme-btn');
+
+      // Audio
+      let isMuted = false;
+      audio.volume = 0.5;
+      volumeSlider.value = 0.5;
+      audio.play().catch(() => {});
+      muteBtn.addEventListener('click', () => {
+        isMuted = !isMuted;
+        audio.muted = isMuted;
+        muteBtn.textContent = isMuted ? '🔇' : '🔊';
+      });
+      volumeSlider.addEventListener('input', () => audio.volume = parseFloat(volumeSlider.value));
+
+      // Theme
+      let dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (dark) document.body.classList.add('dark');
+      themeBtn.textContent = dark ? '☀️' : '🌙';
+      themeBtn.addEventListener('click', () => {
+        dark = !dark;
+        document.body.classList.toggle('dark', dark);
+        themeBtn.textContent = dark ? '☀️' : '🌙';
+      });
+
+      // --- Upload to /api/symbols ---
+      async function uploadFile(file) {
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.so')) {
+          alert('Please upload a .so file (usually libil2cpp.so)');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        status.innerHTML = 'Uploading & extracting... <span class="spinner"></span>';
+        dropzone.style.opacity = '0.6';
+
+        try {
+          const res = await fetch('/api/symbols', {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.error || 'Server error');
+          }
+
+          status.textContent = '✅ Done!';
+          displaySymbols(data.symbols, data.filename);
+
+        } catch (err) {
+          status.textContent = '❌ ' + err.message;
+          console.error(err);
+        } finally {
+          dropzone.style.opacity = '1';
+        }
+      }
+
+      function displaySymbols(symbols, name) {
+        resultArea.style.display = 'block';
+        fileName.textContent = name;
+        symbolCount.textContent = symbols.length + ' symbols found';
+        symbolList.innerHTML = '';
+        if (symbols.length === 0) {
+          symbolList.innerHTML = '<div class="empty-state">No symbols extracted.</div>';
+          return;
+        }
+        const toShow = symbols.slice(0, 10000);
+        for (let s of toShow) {
+          const div = document.createElement('div');
+          div.className = 'symbol-item';
+          div.textContent = s;
+          symbolList.appendChild(div);
+        }
+        if (symbols.length > 10000) {
+          const more = document.createElement('div');
+          more.className = 'symbol-item';
+          more.textContent = `... and ${symbols.length - 10000} more (truncated)`;
+          more.style.color = '#94a3b8';
+          symbolList.appendChild(more);
+        }
+        resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // Drag & Drop
+      dropzone.addEventListener('click', () => fileInput.click());
+      dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+      dropzone.addEventListener('dragleave', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); });
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+      });
+      fileInput.addEventListener('change', function() {
+        if (this.files.length) uploadFile(this.files[0]);
+        this.value = '';
+      });
+    })();
+  </script>
+</body>
+</html>
